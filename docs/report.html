@@ -7,7 +7,7 @@
   body {
     font-family: Arial, sans-serif;
     line-height: 1.4;             /* tighter line spacing */
-    max-width: 900px;             /* slightly narrower for readability */
+    max-width: 1000px;             /* slightly narrower for readability */
     margin: 20px auto;            /* smaller top/bottom margin */
     padding: 0 15px;
   }
@@ -128,35 +128,32 @@
         embeddings optimized for local structure preservation—allowing direct assessment of which 
         algorithm most effectively reveals the intrinsic organization of breast cancer gene expression data.
       </p>
+
+      <p>
+        The visualization below shows the latent 2D representations of the BRCA gene expression data
+        across all dimensionality reduction methods. Each embedding reflects the model performance
+        after hyperparameter tuning using an unsupervised methodology (Jaccard neighborhood preservation).
+      </p>
+
+      <iframe
+      src="multi_grid_viz2.html"
+      width="1000"
+      height="1020"
+      style="border:none;"
+      title="2D Viz">
+    </iframe>
+
     </section>
 
     
-    <section id="unsupervised-validation">
-      <h1>Unsupervised Validation and Model Comparison</h1>
+    <section id="tuned-2d-viz">
+      <h1>2D Interpretation (Tuned)</h1>
     
       <p>
-        Because this analysis is entirely unsupervised, there are no ground-truth labels available 
-        to perform conventional supervised hyperparameter tuning or downstream validation 
-        (e.g., cross-validated accuracy or reconstruction error). 
-        Instead, the quality of each low-dimensional embedding is assessed by how well it 
-        preserves the structure of the original high-dimensional space.
+      For this section we interpret the 2D patterns from the tuned models using the clinical data labels.
       </p>
+
     
-      <p>
-        To quantify this, a <strong>Jaccard neighborhood preservation metric</strong> was used. 
-        For each sample, the set of <em>k</em> nearest neighbors in the full 353-dimensional gene 
-        expression space was compared to its corresponding neighbors in the two-dimensional embedding. 
-        The Jaccard similarity between these sets measures local structure preservation, and the mean 
-        value across all samples provides a single, interpretable score for each method. 
-        Higher scores indicate embeddings that maintain more of the intrinsic manifold geometry.
-      </p>
-    
-      <p>
-        This approach allows principled comparison of the five dimensionality reduction techniques 
-        without relying on supervised information. 
-        It directly measures how faithfully each algorithm captures the relational structure between 
-        tumor samples in gene-expression space.
-      </p>
     </section>
     
   </section>
