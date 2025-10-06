@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Unsupervised Machine Learning</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    line-height: 1.4;             /* tighter line spacing */
+    max-width: 900px;             /* slightly narrower for readability */
+    margin: 20px auto;            /* smaller top/bottom margin */
+    padding: 0 15px;
+  }
+
+  h1, h2, h3 {
+    color: #222;
+    margin-top: 25px;             /* less vertical gap above headers */
+    margin-bottom: 10px;
+  }
+
+  p {
+    margin: 6px 0;                /* compress paragraph spacing */
+  }
+
+  img {
+    display: block;
+    margin: 12px auto;
+    max-width: 80%;               /* smaller images */
+    height: auto;
+  }
+
+  pre {
+    background: #f8f8f8;
+    padding: 6px 8px;
+    border-left: 3px solid #ccc;
+    overflow-x: auto;
+    font-size: 0.9em;
+    line-height: 1.3;
+    margin: 10px 0;
+  }
+
+  code {
+    font-family: Consolas, monospace;
+    font-size: 0.95em;
+  }
+
+  section {
+    margin-bottom: 25px;          /* smaller section gap */
+  }
+
+  ul, ol {
+    margin-top: 4px;
+    margin-bottom: 8px;
+  }
+
+  /* optional subtle tightening for small screens */
+  @media (max-width: 800px) {
+    body {
+      max-width: 100%;
+      padding: 0 10px;
+    }
+    img {
+      max-width: 95%;
+    }
+  }
+</style>
+
+</head>
+
+<body>
+
+  <section id="data-overview">
+    <h1>Data Overview</h1>
+  
+    <p>
+      The <code>BRCA</code> dataset contains gene expression measurements from 
+      <strong>445 breast cancer tumor samples</strong> and 
+      <strong>353 genes</strong> obtained from The Cancer Genome Atlas (TCGA). 
+      Each row represents a single tumor sample, while each column corresponds 
+      to a specific gene's expression level. Larger expression values indicate 
+      higher activation of that gene within the tumor.
+    </p>
+  
+    <p>
+      In addition to the gene expression data, six clinical variables are provided 
+      for each patient: <em>Subtype</em> (one of Basal-like, Luminal A, Luminal B, 
+      HER2-enriched, or Normal-like), <em>ER-Status</em> (estrogen receptor), 
+      <em>PR-Status</em> (progesterone receptor), <em>HER2-Status</em> 
+      (human epidermal growth factor receptor 2), <em>Node</em> (number of lymph 
+      nodes involved), and <em>Metastasis</em> (indicator of whether the cancer 
+      has metastasized).
+    </p>
+  
+    <p>
+      The heatmap below visualizes the expression levels of all 353 genes across 
+      the 445 tumor samples. Each row represents a gene, and each column represents 
+      a tumor. The consistent horizontal bands indicate genes that are expressed 
+      across nearly all samples, while variations in color intensity highlight 
+      differences in gene activation patterns between tumor subtypes.
+    </p>
+  
+    <img src="brca_heatmap.png" alt="Gene expression heatmap for BRCA dataset">
+
+
+    <section id="hyperparameter-selection">
+      <h1>Hyperparameter Selection Strategy</h1>
+    
+      <p>
+        Because this is an unsupervised exploratory task, the goal is to identify meaningful structure 
+        rather than maximize predictive accuracy. All dimensionality reduction methods were therefore 
+        constrained to a two-dimensional embedding (<code>n_components = 2</code>), which provides a 
+        clear and consistent visual summary of tumor-level variation in gene expression. Higher 
+        dimensions would not add interpretive value since most methods (e.g., t-SNE, UMAP, Isomap) 
+        are not ordered or nested by variance explained.
+      </p>
+    
+      <p>
+        Hyperparameter tuning was guided by the principle of <em>neighborhood preservation</em>. 
+        Specifically, parameter sets were evaluated using the mean <strong>Jaccard similarity</strong> 
+        between each sample's nearest neighbors in the original high-dimensional space and those in 
+        the low-dimensional embedding. This metric quantifies how faithfully local relationships are 
+        maintained after projection. The parameters yielding the highest Jaccard index were selected 
+        for each method.
+      </p>
+    
+      <p>
+        This approach ensures that all methods are compared on equal footing—two-dimensional 
+        embeddings optimized for local structure preservation—allowing direct assessment of which 
+        algorithm most effectively reveals the intrinsic organization of breast cancer gene expression data.
+      </p>
+    </section>
+
+    
+    <section id="unsupervised-validation">
+      <h1>Unsupervised Validation and Model Comparison</h1>
+    
+      <p>
+        Because this analysis is entirely unsupervised, there are no ground-truth labels available 
+        to perform conventional supervised hyperparameter tuning or downstream validation 
+        (e.g., cross-validated accuracy or reconstruction error). 
+        Instead, the quality of each low-dimensional embedding is assessed by how well it 
+        preserves the structure of the original high-dimensional space.
+      </p>
+    
+      <p>
+        To quantify this, a <strong>Jaccard neighborhood preservation metric</strong> was used. 
+        For each sample, the set of <em>k</em> nearest neighbors in the full 353-dimensional gene 
+        expression space was compared to its corresponding neighbors in the two-dimensional embedding. 
+        The Jaccard similarity between these sets measures local structure preservation, and the mean 
+        value across all samples provides a single, interpretable score for each method. 
+        Higher scores indicate embeddings that maintain more of the intrinsic manifold geometry.
+      </p>
+    
+      <p>
+        This approach allows principled comparison of the five dimensionality reduction techniques 
+        without relying on supervised information. 
+        It directly measures how faithfully each algorithm captures the relational structure between 
+        tumor samples in gene-expression space.
+      </p>
+    </section>
+    
+  </section>
+  
+</body>
+</html>
