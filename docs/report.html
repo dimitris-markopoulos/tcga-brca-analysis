@@ -101,9 +101,64 @@
   
     <img src="brca_heatmap.png" alt="Gene expression heatmap for BRCA dataset">
 
+    </section>
 
+    <section id="model-selection">
+      <h1>Model Selection</h1>
+    
+      <p>
+        To explore gene-expression patterns within the <code>BRCA</code> dataset, 
+        several dimensionality reduction techniques were applied. Each method offers 
+        distinct advantages in uncovering latent tumor structure and subtype separability.
+      </p>
+    
+      <h2>PCA (Principal Component Analysis)</h2>
+      <ul>
+        <li>Provides a linear projection that captures maximum variance in gene expression, 
+            serving as a strong baseline for identifying dominant global patterns.</li>
+        <li>Facilitates interpretation by ranking genes according to their contribution to 
+            major variance directions, highlighting biologically influential genes.</li>
+        <li>Useful for visualizing broad subtype separations, noise structure, and is a great benchmark before applying nonlinear methods.</li>
+      </ul>
+    
+      <h2>UMAP (Uniform Manifold Approximation and Projection)</h2>
+      <ul>
+        <li>Preserves both local and global relationships, making it ideal for capturing 
+            smooth transitions between tumor subtypes.</li>
+        <li>Efficient and scalable for high-dimensional gene-expression data, 
+            while maintaining cluster integrity.</li>
+        <li>Reveals manifold structure underlying nonlinear subtype differences.</li>
+      </ul>
+    
+      <h2>t-SNE (t-Distributed Stochastic Neighbor Embedding)</h2>
+      <ul>
+        <li>Optimized for local neighborhood preservation, effectively uncovering 
+            compact and well-separated subtype clusters.</li>
+        <li>Highlights nonlinear patterns in gene co-expression that linear models 
+            like PCA may fail to capture.</li>
+        <li>Particularly effective at visualizing distinct Basal-like clusters due to 
+            strong local manifold sensitivity.</li>
+      </ul>
+    
+      <h2>Isomap</h2>
+      <ul>
+        <li>Extends MDS by preserving geodesic distances, capturing nonlinear global 
+            structure in gene-expression manifolds.</li>
+        <li>Balances global and local geometry better than purely local methods like t-SNE.</li>
+      </ul>
+    
+      <h2>Spectral Embedding</h2>
+      <ul>
+        <li>Leverages graph Laplacian structure to extract low-dimensional embeddings 
+            that respect sample connectivity patterns.</li>
+        <li>Captures community-like grouping in expression similarity graphs, 
+            uncovering intrinsic subtype clusters.</li>
+      </ul>
+    </section>
+    
+  
     <section id="hyperparameter-selection">
-      <h1>Hyperparameter Selection Strategy</h1>
+      <h1>Hyperparameter Selection Strategy (Using Jaccard)</h1>
     
       <p>
         Because this is an unsupervised exploratory task, the goal is to identify meaningful structure 
@@ -124,8 +179,8 @@
       </p>
     
       <p>
-        This approach ensures that all methods are compared on equal footing—two-dimensional 
-        embeddings optimized for local structure preservation—allowing direct assessment of which 
+        This approach ensures that all methods are compared on equal footing; two-dimensional 
+        embeddings optimized for local structure preservation, allowing direct assessment of which 
         algorithm most effectively reveals the intrinsic organization of breast cancer gene expression data.
       </p>
 
@@ -147,24 +202,125 @@
 
     
     <section id="tuned-2d-viz">
-      <h1>2D Interpretation (Tuned)</h1>
+      <h1>Interpretation Using Labels</h1>
     
       <p>
-      For this section we interpret the 2D patterns from the tuned models using the clinical data labels.
+      For this section we interpret the 2D patterns from the tuned models using the clinical data labels. 
+      I have plotted the tuned latent 2D rerpresentations across all clinical labels to interpret the discovered patterns.
       </p>
 
+      <h1>Subtype</h1>
+
       <iframe
-      src="multi_grid_viz_labels.html"
+      src="Subtype_across_methods.html"
       width="1000"
-      height="1250"
+      height="1020"
       style="border:none;"
       title="2D Viz">
     </iframe>
 
+    <p>
+      Across all methods, <strong>Basal-like</strong> tumors form a well defined and separable cluster, reflecting their strong distinction from the other subtypes.
+      Linear methods such as <strong>PCA</strong> struggle to capture nonlinear subtype boundaries, and in particular, <strong>HER2 enriched</strong> cases overlap with Luminal clusters, suggesting that linear components do not fully explain the variance associated with HER2 amplification.
+      In contrast, <strong>nonlinear embeddings</strong> such as <strong>UMAP</strong> and <strong>t-SNE</strong> produce a more coherent HER2 enriched grouping, indicating that preserving local manifold structure is important for capturing this subtype.
+      Neither linear nor nonlinear approaches clearly separate <strong>Luminal A</strong> from <strong>Luminal B</strong>, which reflects their biological similarity and limited expression contrast.
+      Further work may be needed to disentangle these two hormonally driven phenotypes, potentially through feature weighting or latent representations in higher dimensional space.
+    </p>
+
+
+    <h1>HER2-Status</h1>
+
+    <iframe
+      src="HER2-Status_across_methods.html"
+      width="1000"
+      height="1020"
+      style="border:none;"
+      title="2D Viz">
+    </iframe>
+
+    <p>
+      Across all embeddings, <strong>nonlinear methods</strong> such as <strong>UMAP</strong> and <strong>t-SNE</strong> capture clear separation between <strong>HER2 positive</strong> and <strong>HER2 negative</strong> samples, while <strong>linear projections</strong> like <strong>PCA</strong> fail to identify any distinct partitioning.
+      This pattern reaffirms the observations seen in the <strong>HER2 enriched</strong> subtype, indicating that nonlinear manifold learning better reflects the biological variance associated with HER2 amplification.
+      The clear clustering in nonlinear embeddings supports the idea that HER2 expression introduces complex, nonlinear relationships in the transcriptomic space that are not adequately represented in linear subspace models.
+    </p>
+
+
+    <h1>Node and Metastasis</h1>
     
+     <div style="display: flex; justify-content: center; align-items: flex-start; position: relative; margin-bottom: -350px;">
+      <div style="transform: scale(0.6); transform-origin: top right; margin-right: -30px;">
+        <iframe
+          src="Node_across_methods.html"
+          width="950"
+          height="1020"
+          style="border:none; display:block;"
+          title="Node 2D Viz">
+        </iframe>
+      </div>
+    
+      <div style="transform: scale(0.6); transform-origin: top left; margin-left: -30px;">
+        <iframe
+          src="Metastasis_across_methods.html"
+          width="950"
+          height="1020"
+          style="border:none; display:block;"
+          title="Metastasis 2D Viz">
+        </iframe>
+      </div>
+    </div>
+    
+    <p>
+      For both <strong>Node</strong> and <strong>Metastasis</strong> features, the patterns across all embedding methods appear largely uninformative, with no consistent clustering or separability observable between classes.
+      Both <strong>linear</strong> and <strong>nonlinear</strong> methods fail to uncover structure related to nodal involvement or metastatic spread.
+      The <strong>Node</strong> variable (0-3) remains diffusely distributed in each embedding space, suggesting it does not align with the main sources of transcriptional variance.
+      The <strong>Metastasis</strong> feature is dominated by class imbalance, with only a small number of positive samples, making any grouping statistically unreliable.
+      Together, these results indicate that neither nodal status nor metastasis is strongly reflected in the unsupervised latent spaces, implying they are driven more by downstream clinical and spatial progression rather than molecular expression patterns captured by these methods.
+    </p>
+
     </section>
+
+    <section id="nonlinear-evaluation">
+      <h1>Nonlinear Quantitative Evaluation</h1>
     
-  </section>
+      <p>
+        Because the observed subtype patterns were clearly nonlinear, 
+        linear PCA was excluded from the quantitative comparison. 
+        I focused instead on four nonlinear embedding methods: 
+        <strong>t-SNE</strong>, <strong>UMAP</strong>, <strong>Isomap</strong>, and <strong>Spectral Embedding</strong>. 
+        Each was evaluated using a <strong>5-Nearest-Neighbors (KNN)</strong> classifier 
+        trained on 80% of the samples and tested on the remaining 20%. 
+        The accuracy reflects how well local subtype neighborhoods are preserved 
+        after dimensionality reduction.
+      </p>
+    
+      <p>
+        As expected, <strong>t-SNE</strong> achieved the highest KNN accuracy (approx 0.71), 
+        consistent with its design objective of preserving local neighborhoods in the low-dimensional space. 
+        The other nonlinear methods: <strong>UMAP</strong>, <strong>Isomap</strong>, and <strong>Spectral Embedding</strong>,
+        performed similarly, all around 0.62-0.64 accuracy. 
+        This suggests that while t-SNE is quantitatively strongest for local consistency, 
+        the remaining methods also retain meaningful structure within their embeddings.
+      </p>
+    
+      <p>
+        From a visual standpoint, however, <strong>UMAP</strong> and <strong>Isomap</strong> 
+        produce clearer and more interpretable spatial organization of samples, 
+        balancing cluster separation with smooth transitions across subtypes. 
+        These methods therefore offer the most informative and visually interpretable 
+        low-dimensional summaries of the <code>BRCA</code> expression data.
+      </p>
+    
+      <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0;">
+        <iframe
+          src="knn_eval_nonlinear.html"
+          width="700"
+          height="420"
+          style="border:none;"
+          title="KNN Accuracy for Nonlinear Embeddings">
+        </iframe>
+      </div>
+      
+    </section>
   
 </body>
 </html>
