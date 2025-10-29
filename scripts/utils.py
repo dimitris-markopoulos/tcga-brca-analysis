@@ -3,6 +3,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.cluster import (
     KMeans,
     AgglomerativeClustering,
@@ -11,6 +12,10 @@ from sklearn.cluster import (
 )
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
+from sklearn.metrics import adjusted_rand_score
+from sklearn.model_selection import KFold
+from sklearn.ensemble import RandomForestClassifier
+from scipy.cluster.hierarchy import linkage, fcluster
 
 def plot_label_across_methods(label_name, y, embeddings_dict, palette, save_path):
 
@@ -197,3 +202,179 @@ def agglomerative_jitter_silhouette_scores(X, random_state, linkage):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+def predictive_ari_cv(X, cluster_method, k_values, n_splits=5, random_state=42, **cluster_kwargs):
+    n_samples, p = X.shape
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    pred_ari_means, pred_ari_stds = [], []
+
+    for k in k_values:
+        aris = []
+        for fold_idx, (train_idx, test_idx) in enumerate(kf.split(X)):
+            # --- clustering on train and test ---
+            if cluster_method == "KMeans":
+                model_train = KMeans(n_clusters=k, n_init=10, random_state=fold_idx)
+                model_test  = KMeans(n_clusters=k, n_init=10, random_state=fold_idx + 1000)
+            elif cluster_method == "GMM":
+                model_train = GaussianMixture(n_components=k, random_state=fold_idx)
+                model_test  = GaussianMixture(n_components=k, random_state=fold_idx + 1000)
+            elif cluster_method == "Spectral":
+                model_train = SpectralClustering(n_clusters=k, random_state=fold_idx)
+                model_test  = SpectralClustering(n_clusters=k, random_state=fold_idx + 1000)
+            elif cluster_method == "Hierarchical":
+                linkage = cluster_kwargs.get("linkage", "ward")
+                model_train = AgglomerativeClustering(n_clusters=k, linkage=linkage)
+                model_test  = AgglomerativeClustering(n_clusters=k, linkage=linkage)
+            else:
+                raise ValueError("Unsupported method.")
+
+            labels_train = model_train.fit_predict(X[train_idx])
+            labels_test = model_test.fit_predict(X[test_idx])
+
+            # --- train random forest to generalize ---
+            rf = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=p,
+                max_features=int(np.round(np.sqrt(p))),
+                random_state=fold_idx
+            )
+            rf.fit(X[train_idx], labels_train)
+            labels_test_pred = rf.predict(X[test_idx])
+
+            # --- compute predictive ARI ---
+            aris.append(adjusted_rand_score(labels_test, labels_test_pred))
+
+        pred_ari_means.append(np.mean(aris))
+        pred_ari_stds.append(np.std(aris, ddof=1))
+
+    best_k = k_values[int(np.argmax(pred_ari_means))]
+
+    # --- plotting ---
+    plt.figure(figsize=(8, 5))
+    plt.errorbar(
+        k_values, pred_ari_means, yerr=pred_ari_stds,
+        fmt='-o', capsize=4, label='Predictive ARI (mean ± SD)', color='blue'
+    )
+
+    # red dashed line for best K with legend entry
+    plt.axvline(
+        best_k, linestyle='--', alpha=0.8, color='red',
+        label=f'Best K = {best_k}'
+    )
+
+    # Proper title handling for hierarchical linkages
+    title = f'Predictive ARI (5-fold CV): {cluster_method}'
+    if cluster_method == "Hierarchical":
+        title += f' (linkage="{cluster_kwargs.get("linkage", "ward")}")'
+
+    plt.title(title)
+    plt.xlabel('Number of clusters (K)')
+    plt.ylabel('Mean ± SD ARI')
+    plt.legend(frameon=True, loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+    return best_k, pred_ari_means, pred_ari_stds
+
+def predictive_ari_dbscan(X, eps_values, min_samples_values, n_splits=5, random_state=42):
+    """
+    Evaluate DBSCAN generalizability using Predictive ARI across eps and min_samples values.
+    """
+    n_samples, p = X.shape
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    ari_results = np.zeros((len(eps_values), len(min_samples_values)))
+
+    for i, eps in enumerate(eps_values):
+        for j, ms in enumerate(min_samples_values):
+            aris = []
+            for fold_idx, (train_idx, test_idx) in enumerate(kf.split(X)):
+                # --- Fit DBSCAN on train/test folds ---
+                model_train = DBSCAN(eps=eps, min_samples=ms)
+                model_test  = DBSCAN(eps=eps, min_samples=ms)
+                labels_train = model_train.fit_predict(X[train_idx])
+                labels_test  = model_test.fit_predict(X[test_idx])
+
+                # Skip if too few clusters (e.g., all noise or single cluster)
+                if len(set(labels_train)) <= 1 or len(set(labels_test)) <= 1:
+                    continue
+
+                # --- Train RF classifier on train clusters ---
+                rf = RandomForestClassifier(
+                    n_estimators=100,
+                    max_depth=p,
+                    max_features=int(np.round(np.sqrt(p))),
+                    random_state=fold_idx
+                )
+                rf.fit(X[train_idx], labels_train)
+
+                # --- Predict on test fold and compute ARI ---
+                labels_test_pred = rf.predict(X[test_idx])
+                ari = adjusted_rand_score(labels_test, labels_test_pred)
+                aris.append(ari)
+
+            ari_results[i, j] = np.mean(aris) if len(aris) > 0 else np.nan
+            print(f"eps={eps:.2f}, min_samples={ms:2d} | mean ARI={ari_results[i,j]:.3f}")
+
+    # --- Plot results ---
+    plt.figure(figsize=(7, 5))
+    sns.heatmap(
+        ari_results, annot=True, fmt=".3f",
+        xticklabels=min_samples_values, yticklabels=np.round(eps_values, 2),
+        cmap="crest"
+    )
+    plt.xlabel("min_samples")
+    plt.ylabel("eps")
+    plt.title("DBSCAN Predictive ARI (5-fold CV)")
+    plt.tight_layout()
+    plt.show()
+
+    # --- Identify best parameter combination ---
+    best_idx = np.nanargmax(ari_results)
+    best_eps_i, best_ms_j = np.unravel_index(best_idx, ari_results.shape)
+    best_eps = eps_values[best_eps_i]
+    best_ms  = min_samples_values[best_ms_j]
+    best_ari = ari_results[best_eps_i, best_ms_j]
+
+    print(f"\nBest Parameters: eps={best_eps:.3f}, min_samples={best_ms} (Mean ARI={best_ari:.3f})")
+
+    return best_eps, best_ms, ari_results
+
+def dbscan_silhouette(X, eps=0.35, min_samples=5, metric="euclidean"):
+    labels = DBSCAN(eps=eps, min_samples=min_samples, metric=metric).fit_predict(X)
+    n_noise = np.sum(labels == -1)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+
+    # compute on clustered points only
+    mask = labels != -1
+    if n_clusters < 2 or mask.sum() == 0:
+        return dict(score=np.nan, n_clusters=n_clusters, n_noise=n_noise, labels=labels)
+
+    score = silhouette_score(X[mask], labels[mask], metric=metric)
+    return dict(score=score, n_clusters=n_clusters, n_noise=n_noise, labels=labels)
+
+def single_linkage_best_cut(X, metric="euclidean", n_grid=60, min_frac=0.05, max_frac=0.95):
+    Z = linkage(X, method="single", metric=metric)
+    d = Z[:, 2]  # merge heights
+
+    # scan sensible range of heights (avoid extremes)
+    lo, hi = np.quantile(d, min_frac), np.quantile(d, max_frac)
+    ts = np.linspace(lo, hi, n_grid)
+
+    best = (None, -1.0, None)  # (t, score, labels)
+    scores = []
+
+    for t in ts:
+        labels = fcluster(Z, t=t, criterion="distance")
+        k = len(np.unique(labels))
+        if k < 2:      # silhouette requires ≥2 clusters
+            scores.append(np.nan); continue
+        try:
+            s = silhouette_score(X, labels)
+        except Exception:
+            s = np.nan
+        scores.append(s)
+        if np.isfinite(s) and s > best[1]:
+            best = (t, s, labels)
+
+    return Z, ts, np.array(scores), best  # best=(t*, score*, labels*)
