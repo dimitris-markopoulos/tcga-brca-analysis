@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from matplotlib.lines import Line2D
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +17,21 @@ from sklearn.metrics import adjusted_rand_score
 from sklearn.model_selection import KFold
 from sklearn.ensemble import RandomForestClassifier
 from scipy.cluster.hierarchy import linkage, fcluster
+from sklearn.neighbors import NearestNeighbors
+
+import warnings
+from sklearn.manifold import spectral_embedding
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="Graph is not fully connected",
+    category=UserWarning,
+    module="sklearn.manifold._spectral_embedding"
+)
+
+
 
 def plot_label_across_methods(label_name, y, embeddings_dict, palette, save_path):
 
@@ -102,19 +118,20 @@ def fit_gmm(X, k=5, seed=42):
 def fit_dbscan(X, eps=0.5, min_samples=5):
     return DBSCAN(eps=eps, min_samples=min_samples).fit_predict(X)
 
-def create_cluster_dict(X_dimension_reduction : np.ndarray):
+def create_cluster_dict(X_dimension_reduction : np.ndarray, K : int):
     labels = (
         {
-            "KMeans": fit_kmeans(X_dimension_reduction),
-            "Spectral": fit_spectral(X_dimension_reduction),
-            "GMM": fit_gmm(X_dimension_reduction),
-            "DBSCAN": fit_dbscan(X_dimension_reduction)
+            "KMeans": fit_kmeans(X_dimension_reduction, K),
+            "Spectral": fit_spectral(X_dimension_reduction, K),
+            "GMM": fit_gmm(X_dimension_reduction, K),
         } 
         | 
         {
-            f"Hierarchical | {link.capitalize()}": fit_hierarchical(X_dimension_reduction, linkage=link) 
+            f"Hierarchical | {link.capitalize()}": fit_hierarchical(X_dimension_reduction, K, linkage=link) 
                 for link in ['ward','single','average','complete']
         }
+        |
+        {"DBSCAN (independent of K)": fit_dbscan(X_dimension_reduction,eps=0.35,min_samples=5)}
         )
     return labels, X_dimension_reduction
 
@@ -378,3 +395,65 @@ def single_linkage_best_cut(X, metric="euclidean", n_grid=60, min_frac=0.05, max
             best = (t, s, labels)
 
     return Z, ts, np.array(scores), best  # best=(t*, score*, labels*)
+
+
+def dbscan_initial_tune(X):
+    fig, ax = plt.subplots(1, 3, figsize=(20, 5))
+
+    #============================================
+    # DBSCAN - DEFAULT
+    #============================================
+    model = DBSCAN() # do not specify leave DEFAULT
+    labels = model.fit_predict(X)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    n_noise = (labels == -1).sum()
+
+    ax[0].scatter(X[:, 0], X[:, 1], c=labels, cmap="tab10", s=15)
+    ax[0].set_title(f"DBSCAN DEFAULT FIT")
+    ax[0].set_xticks([]); ax[0].set_yticks([])
+
+    # legend
+    info_text = f"|clusters| = {n_clusters}\n|noise points| = {n_noise}"
+    text_only = [Line2D([], [], linestyle='none', marker='')]  # invisible handle
+    ax[0].legend(text_only, [info_text], loc="best", frameon=False, handlelength=0, handletextpad=0)
+
+
+    #============================================
+    # DISTANCES TUNING PLOT
+    #============================================
+    min_samples = 5  # typically valid in 2D embedding
+
+    neighbors = NearestNeighbors(n_neighbors=min_samples) # Compute distance to the k-th nearest neighbor for every point
+    neighbors_fit = neighbors.fit(X)
+    distances, indices = neighbors_fit.kneighbors(X)
+    distances = np.sort(distances[:, -1]) # Sort the distances (to find the “elbow”)
+
+    ax[1].plot(distances)
+    ax[1].set_title(f"k-distance Graph (min_samples={min_samples})")
+    ax[1].set_xlabel("Points sorted by distance")
+    ax[1].set_ylabel(f"Distance to {min_samples}-th Nearest Neighbor")
+    ax[1].grid(True)
+
+    eps_opt = 0.35  # Based on the elbow around 0.35
+    ax[1].axhline(eps_opt, color='red', linestyle='--', label=f"Chosen eps = {eps_opt}")
+    ax[1].legend()
+
+    #============================================
+    # DBSCAN - TUNED (ELBOW)
+    #============================================
+    model = DBSCAN(eps=eps_opt, min_samples=min_samples)
+    labels = model.fit_predict(X)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    n_noise = (labels == -1).sum()
+
+    ax[2].scatter(X[:, 0], X[:, 1], c=labels, cmap="tab10", s=15)
+    ax[2].set_title(f"DBSCAN (eps={eps_opt}, min_samples={min_samples})")
+    ax[2].set_xticks([]); ax[2].set_yticks([])
+
+    # legend
+    info_text = f"|clusters| = {n_clusters}\n|noise points| = {n_noise}"
+    text_only = [Line2D([], [], linestyle='none', marker='')]  # invisible handle
+    ax[2].legend(text_only, [info_text], loc="best", frameon=False, handlelength=0, handletextpad=0)
+
+    plt.tight_layout()
+    plt.show()
