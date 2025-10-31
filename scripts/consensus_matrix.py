@@ -63,7 +63,7 @@ def consensus_matrix_kmeans(
     plt.tight_layout()
     plt.show()
 
-    plt.figure(figsize=(9, 3))
+    plt.figure(figsize=(6, 3))
     plt.plot(K_values, stability_scores, marker='o', color='b', label='Stability Score')
     plt.xlabel('Number of Clusters (K)')
     plt.ylabel('Stability Score (Avg. Variance)')
@@ -127,7 +127,7 @@ def consensus_matrix_gmm(
     plt.show()
 
     # --- stability curve ---
-    plt.figure(figsize=(9, 3))
+    plt.figure(figsize=(6, 3))
     plt.plot(K_values, stability_scores, marker='o', color='b', label='Stability Score')
     plt.xlabel('Number of Components (K)')
     plt.ylabel('Stability Score (Avg. Variance)')
@@ -202,7 +202,7 @@ def consensus_matrix_spectral(
     plt.show()
 
     # --- Stability curve ---
-    plt.figure(figsize=(9, 3))
+    plt.figure(figsize=(6, 3))
     plt.plot(K_values, stability_scores, marker='o', color='b', label='Stability Score')
     plt.xlabel('Number of Clusters (K)')
     plt.ylabel('Stability Score (Avg. Variance)')
@@ -271,7 +271,7 @@ def consensus_matrix_hierarchical(
     plt.show()
 
     # --- plot stability curve ---
-    plt.figure(figsize=(9, 3))
+    plt.figure(figsize=(6, 3))
     plt.plot(K_values, stability_scores, marker='o', color='b', label='Stability Score')
     plt.xlabel('Number of Clusters (K)')
     plt.ylabel('Stability Score (Avg. Variance)')
